@@ -63,7 +63,22 @@ export async function lookup(ref: Reference, environment: Environment = {}): Pro
   const platform = environment.platform ?? process.platform
   const { command, args } = buildCommand(ref, platform)
   const value = await (environment.run ?? run)(command, args)
-  // secret-tool prints nothing and exits 0 when the item does not exist.
-  if (platform === "linux" && !value) throw new Error("secret not found")
+  // secret-tool prints nothing and exits 0 when the item does not exist, and an empty secret is never useful.
+  if (!value) throw new Error("secret not found or empty")
   return value
+}
+
+const SAFE = /^[\w.@:+-]+$/
+const quote = (value: string) => (SAFE.test(value) ? value : `'${value.replaceAll("'", `'\\''`)}'`)
+
+/** The command that stores the secret, for error messages. Empty on an unsupported platform. */
+export function storeHint(ref: Reference, platform: NodeJS.Platform): string {
+  switch (platform) {
+    case "darwin":
+      return `security add-generic-password -s ${quote(ref.service)}${ref.account ? ` -a ${quote(ref.account)}` : ""} -w`
+    case "linux":
+      return `secret-tool store --label ${quote(ref.service)} service ${quote(ref.service)}${ref.account ? ` account ${quote(ref.account)}` : ""}`
+    default:
+      return ""
+  }
 }

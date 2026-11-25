@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { buildCommand, lookup, parseReference, run, type Runner } from "../../src/keychain.ts"
+import { buildCommand, lookup, parseReference, run, storeHint, type Runner } from "../../src/keychain.ts"
 
 describe("parseReference", () => {
   test("a bare name is a service", () => {
@@ -93,14 +93,39 @@ describe("lookup", () => {
     expect(calls).toEqual([])
   })
 
-  test("Linux treats an empty result as a missing secret", async () => {
+  test("treats an empty result as a missing secret on every platform", async () => {
     const { runner } = recorder("")
-    await expect(lookup({ service: "svc" }, { platform: "linux", run: runner })).rejects.toThrow("secret not found")
+    for (const platform of ["linux", "darwin"] as const) {
+      await expect(lookup({ service: "svc" }, { platform, run: runner })).rejects.toThrow("secret not found or empty")
+    }
   })
 
   test("propagates runner errors unchanged", async () => {
     const { runner } = recorder(new Error("item not found"))
     await expect(lookup({ service: "svc" }, { platform: "darwin", run: runner })).rejects.toThrow("item not found")
+  })
+})
+
+describe("storeHint", () => {
+  test("macOS suggests security add-generic-password", () => {
+    expect(storeHint({ service: "svc" }, "darwin")).toBe("security add-generic-password -s svc -w")
+    expect(storeHint({ service: "svc", account: "me" }, "darwin")).toBe("security add-generic-password -s svc -a me -w")
+  })
+
+  test("Linux suggests secret-tool store", () => {
+    expect(storeHint({ service: "svc", account: "me" }, "linux")).toBe(
+      "secret-tool store --label svc service svc account me",
+    )
+  })
+
+  test("quotes values that a shell would interpret", () => {
+    expect(storeHint({ service: "my svc", account: "it's" }, "darwin")).toBe(
+      "security add-generic-password -s 'my svc' -a 'it'\\''s' -w",
+    )
+  })
+
+  test("has no suggestion on an unsupported platform", () => {
+    expect(storeHint({ service: "svc" }, "win32")).toBe("")
   })
 })
 
