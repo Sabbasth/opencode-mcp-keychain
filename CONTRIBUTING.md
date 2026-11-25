@@ -118,5 +118,9 @@ When a commit reaches `main` and passes every test, including the end-to-end one
 creates the tag and a GitHub release with generated notes. It never commits, so the `version` in
 `package.json` is a placeholder and the git tag is the source of truth.
 
+The GitHub API sometimes fails with a server error. The job retries, and it only creates what is
+missing, so if a release is left unfinished, for example a tag without its GitHub release, rerun the
+failed job of that workflow run: it plans the release again from the tagged commit and completes it.
+
 `bun scripts/release.ts` prints the release the current checkout would produce, without changing
 anything.
