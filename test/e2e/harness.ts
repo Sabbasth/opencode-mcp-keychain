@@ -110,6 +110,9 @@ export async function fixture(): Promise<Fixture> {
         return ((await response.json()) as { data: McpServer[] }).data
       }
 
+      // OpenCode loads a project, with its plugins and MCP servers, on the first request that names it.
+      await servers_()
+
       const handle: Running = {
         servers: servers_,
         async diagnostics() {
