@@ -1,0 +1,31 @@
+{
+  "name": "opencode-mcp-keychain",
+  "version": "0.1.0",
+  "description": "Resolve {keychain:<name>} references in OpenCode MCP server configuration from the OS keychain",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "mcp",
+    "keychain",
+    "secrets"
+  ],
+  "peerDependencies": {
+    "@opencode/plugin": "^2.3.0"
+  },
+  "devDependencies": {
+    "@opencode/plugin": "^2.3.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
