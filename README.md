@@ -3,10 +3,42 @@
 OpenCode V2 server plugin that resolves `{keychain:<name>}` references in MCP server
 configuration from the OS keychain, alongside the built-in `{env:<name>}` and `{file:<path>}`.
 
+## Install
+
+Install a pinned release from GitHub with the OpenCode CLI. Git credentials are used for private
+repositories.
+
+```sh
+opencode plugin add github:Sabbasth/opencode-mcp-keychain#v0.1.0
+```
+
+The suffix after `#` can be a tag, a branch or a full commit hash. A tag or a full commit hash pins
+the plugin to that exact revision. A branch (`#main`) or no suffix follows new commits, and
+OpenCode checks for updates at startup.
+
+```sh
+opencode plugin list                          # installed plugins and their source
+opencode plugin check                         # look for updates (pinned revisions are skipped)
+opencode plugin update mcp-keychain           # update an unpinned install
+opencode plugin remove github:Sabbasth/opencode-mcp-keychain#v0.1.0
+```
+
+To move to another release, remove the pinned entry and add the new tag. SSH works as well:
+`opencode plugin add git+ssh://git@github.com/Sabbasth/opencode-mcp-keychain.git#v0.1.0`.
+
+For development, point `plugins` at a local clone instead. OpenCode watches the directory and
+reloads on change. Do not keep this entry next to a GitHub install, since both register the same
+plugin ID.
+
+```jsonc title="opencode.jsonc"
+{ "plugins": ["/absolute/path/to/opencode-mcp-keychain"] }
+```
+
+## Usage
+
 ```jsonc title="opencode.jsonc"
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugins": ["/Users/me/projects/opencode-mcp-keychain"],
   "mcp": {
     "servers": {
       "context7": {
