@@ -1,0 +1,78 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Weekly, to notice when a new OpenCode release breaks the plugin.
+    - cron: "17 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUN_VERSION: "1.4.5"
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - name: Unit and plugin tests
+        run: bun test test/unit test/plugin
+      - name: Real keychain tests
+        if: runner.os == 'macOS'
+        run: |
+          .github/scripts/setup-keychain.sh
+          KEYCHAIN_INTEGRATION=1 bun test test/integration
+
+  # Starts a real OpenCode server, so it only runs when code reaches main (and weekly, or on demand).
+  e2e:
+    name: e2e (opencode ${{ matrix.opencode }})
+    needs: test
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest release the plugin is tested against, and the newest.
+        opencode: ["2.3.0", "latest"]
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - name: Install OpenCode
+        run: |
+          bun install -g --trust "@opencode/cli@${{ matrix.opencode }}"
+          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
+      - name: Show versions
+        run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          opencode --version
+          bun --version
+      - name: End-to-end tests
+        run: |
+          .github/scripts/setup-keychain.sh
+          OPENCODE_E2E=1 KEYCHAIN_INTEGRATION=1 bun test test/e2e
