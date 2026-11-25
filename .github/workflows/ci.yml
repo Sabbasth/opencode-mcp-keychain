@@ -76,3 +76,34 @@ jobs:
         run: |
           .github/scripts/setup-keychain.sh
           OPENCODE_E2E=1 KEYCHAIN_INTEGRATION=1 bun test test/e2e
+
+  # Tags and publishes a release, but only for a commit that passed every test, including the end-to-end ones.
+  # The version comes from the Conventional Commits since the last tag (see scripts/release.ts). The job creates a
+  # tag and a GitHub release and never commits, so main only ever holds commits you signed.
+  release:
+    name: release
+    needs: [test, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - name: Plan the release
+        id: plan
+        run: bun scripts/release.ts --notes release-notes.md
+      - name: Create the tag and the release
+        if: steps.plan.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file release-notes.md
