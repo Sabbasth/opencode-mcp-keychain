@@ -132,6 +132,38 @@ If several secrets of one server are unreadable, all of them are listed.
 Only MCP server configuration is handled. Providers could be supported the same way through
 `ctx.provider.transform`.
 
+## Tests
+
+Tests run with [Bun](https://bun.sh), the runtime OpenCode itself is built on.
+
+```sh
+bun install
+bun run typecheck
+bun test
+```
+
+`bun test` runs everything that is safe on a developer machine and skips the rest:
+
+| Suite | Directory | What it covers | When it runs |
+| --- | --- | --- | --- |
+| Unit | `test/unit` | reference parsing, substitution, platform commands | always |
+| Plugin | `test/plugin` | the plugin against a fake `ctx.mcp` that replays transforms like OpenCode | always |
+| Keychain | `test/integration` | the real macOS keychain | `KEYCHAIN_INTEGRATION=1`, macOS only |
+| End-to-end | `test/e2e` | a real `opencode serve` loading the plugin, read through its API | `OPENCODE_E2E=1` |
+
+The keychain and end-to-end suites store temporary items in the default keychain, so they are meant
+for CI, where a throwaway keychain is created first (`.github/scripts/setup-keychain.sh`). The two
+end-to-end scenarios that need no stored secret (missing secret, server disabled by the user) can
+be run locally with `OPENCODE_E2E=1 bun test test/e2e`. They use a private server and temporary
+`XDG_*` directories, and leave your configuration alone.
+
+CI (`.github/workflows/ci.yml`):
+
+- every push and pull request: type check, unit and plugin tests on macOS and Ubuntu, keychain
+  tests on macOS;
+- when code reaches `main`, weekly, and on demand: the end-to-end tests on macOS against the
+  oldest OpenCode release the plugin supports (`2.3.0`) and the latest one.
+
 ## Development
 
 The plugin only uses type imports from `@opencode/plugin`, so it has no runtime dependency and
