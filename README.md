@@ -168,6 +168,26 @@ CI (`.github/workflows/ci.yml`):
 - when code reaches `main`, weekly, and on demand: the end-to-end tests on macOS against the
   oldest OpenCode release the plugin supports (`2.3.0`) and the latest one.
 
+## Releases
+
+Versions follow [semver](https://semver.org) and are derived from the commit messages
+([Conventional Commits](https://www.conventionalcommits.org)) made since the last `vX.Y.Z` tag:
+
+| Commits | Release |
+| --- | --- |
+| `feat!:` or a `BREAKING CHANGE:` footer | major, or minor while the version is below 1.0.0 |
+| `feat:` | minor |
+| `fix:`, `perf:` | patch |
+| `docs:`, `test:`, `ci:`, `chore:`, `refactor:` only | no release |
+
+When a commit reaches `main` and passes every test, including the end-to-end ones, the `release` job
+of the CI creates the tag and a GitHub release with generated notes. It never commits, so the
+`version` in `package.json` is a placeholder and the git tag is the source of truth. Pin that tag
+when you install the plugin, see [Install](#install).
+
+`bun scripts/release.ts` prints the release the current checkout would produce, without changing
+anything.
+
 ## Development
 
 The plugin only uses type imports from `@opencode/plugin`, so it has no runtime dependency and
