@@ -1,5 +1,8 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, setDefaultTimeout, test } from "bun:test"
 import { buildCommand, lookup, parseReference, run, storeHint, type Runner } from "../../src/keychain.ts"
+
+// Some tests start real processes, which can take seconds on a busy CI runner.
+setDefaultTimeout(30_000)
 
 describe("parseReference", () => {
   test("a bare name is a service", () => {

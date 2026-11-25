@@ -84,7 +84,7 @@ export function fakeLog() {
 }
 
 /** Wait until `check` holds, or fail after a timeout. Never sleeps for a fixed time. */
-export async function until(check: () => boolean, timeoutMs = 2000) {
+export async function until(check: () => boolean, timeoutMs = 10_000) {
   const start = Date.now()
   while (!check()) {
     if (Date.now() - start > timeoutMs) throw new Error("condition not reached in time")

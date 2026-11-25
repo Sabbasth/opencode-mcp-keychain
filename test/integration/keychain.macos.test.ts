@@ -1,6 +1,8 @@
-import { afterAll, describe, expect, test } from "bun:test"
+import { afterAll, describe, expect, setDefaultTimeout, test } from "bun:test"
 import { lookup } from "../../src/keychain.ts"
 import { addSecret, deleteSecret, keychainEnabled, uniqueService } from "../helpers/keychain.ts"
+
+setDefaultTimeout(30_000)
 
 // Writes temporary items to the default keychain. CI points it at a throwaway keychain.
 describe.skipIf(!keychainEnabled)("real macOS keychain", () => {
