@@ -100,10 +100,32 @@ it by adding `"-mcp-keychain"` to `plugins`.
   with the resolved values.
 - Values are cached in memory for the lifetime of the plugin. After rotating a secret, or adding
   a missing one, run `/reload`.
-- A missing or unreadable secret keeps the server disabled (visible in `/mcps`) instead of
-  substituting an empty string like `{env:}` does.
+- A missing, empty or unreadable secret never becomes an empty string like with `{env:}`. The
+  server is reported as `failed` with an explanation instead, see [Troubleshooting](#troubleshooting).
+- A server you disabled yourself (`"disabled": true`) is left alone: its secrets are not read.
 - Secret values are never logged.
 - The first access may trigger a macOS keychain authorization prompt. Lookups time out after 60s.
+
+## Troubleshooting
+
+When a secret cannot be read, the affected server shows up as `failed` in `/mcps`, in the desktop
+app and in `opencode mcp list`, with the reason and the command that stores the secret:
+
+```
+✗ github-ro  failed: Connection closed: MCP server process exited with code 1:
+  mcp-keychain: cannot read {keychain:github-mcp-readonly} (security: SecKeychainSearchCopyNext:
+  The specified item could not be found in the keychain.). Store it with:
+  security add-generic-password -s github-mcp-readonly -w, then run /reload
+```
+
+OpenCode computes a server's status itself and gives plugins no way to set it. To get a readable
+status, the plugin swaps the configuration of the affected server for a command that prints the
+message on stderr and exits, which OpenCode reports as the failure reason. The original
+configuration is restored as soon as every secret can be read. Run `/reload` after storing a
+missing secret: failures are remembered until then, so that a missing secret is not looked up
+again on every reload.
+
+If several secrets of one server are unreadable, all of them are listed.
 
 ## Scope
 
