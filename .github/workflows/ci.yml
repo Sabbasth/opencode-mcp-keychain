@@ -1,8 +1,23 @@
 name: ci
 
+# Pushes and pull requests only run when the plugin or its dependencies change. Changes to the tests, the scripts, the
+# documentation and this workflow do not. The paths filter does not apply to the manual and weekly runs, which
+# always run everything.
 on:
   push:
+    paths:
+      - "src/**"
+      - "package.json"
+      - "bun.lock"
+      - "tsconfig.json"
+      - "bunfig.toml"
   pull_request:
+    paths:
+      - "src/**"
+      - "package.json"
+      - "bun.lock"
+      - "tsconfig.json"
+      - "bunfig.toml"
   workflow_dispatch:
   schedule:
     # Weekly, to notice when a new OpenCode release breaks the plugin.
