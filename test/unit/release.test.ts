@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { applyBump, bumpFor, latestTag, notes, parseCommit, plan, type Commit } from "../../scripts/release.ts"
+import { applyBump, bumpFor, latestTag, notes, parseCommit, plan, resolve, type Commit } from "../../scripts/release.ts"
 
 const commit = (subject: string, body = "", sha = "abcdef0123456789"): Commit => ({ sha, subject, body })
 
@@ -112,6 +112,39 @@ describe("plan", () => {
 
   test("bases the bump on the highest tag, whatever the order", () => {
     expect(plan(["v0.10.0", "v0.9.0"], [commit("fix: a")])).toMatchObject({ tag: "v0.10.1" })
+  })
+})
+
+describe("resolve", () => {
+  const since = (expected: string | undefined, commits: Commit[]) => (tag: string | undefined) => {
+    expect(tag).toBe(expected)
+    return commits
+  }
+
+  test("plans the next release when HEAD is not tagged", () => {
+    expect(resolve(["v0.1.0"], [], since("v0.1.0", [commit("feat: a")]))).toMatchObject({ release: true, tag: "v0.2.0" })
+  })
+
+  test("plans again the release HEAD is already tagged with, so that it can be completed", () => {
+    const result = resolve(["v0.1.0", "v0.2.0"], ["v0.2.0"], since("v0.1.0", [commit("feat: a"), commit("docs: b")]))
+    expect(result).toMatchObject({ release: true, tag: "v0.2.0", previous: "v0.1.0" })
+  })
+
+  test("reads the commits since the tag before the one HEAD carries", () => {
+    resolve(["v0.1.0", "v0.2.0"], ["v0.2.0"], since("v0.1.0", []))
+  })
+
+  test("does not release when HEAD carries a tag the commits do not explain", () => {
+    const result = resolve(["v0.1.0", "v5.0.0"], ["v5.0.0"], since("v0.1.0", [commit("feat: a")]))
+    expect(result).toEqual({ release: false, reason: "HEAD is already released as v5.0.0" })
+  })
+
+  test("does not release when HEAD is tagged and nothing is releasable", () => {
+    expect(resolve(["v0.1.0", "v0.1.1"], ["v0.1.1"], since("v0.1.0", [commit("docs: a")])).release).toBe(false)
+  })
+
+  test("without tags at all, the first feature is v0.1.0", () => {
+    expect(resolve([], [], since(undefined, [commit("feat: first")]))).toMatchObject({ release: true, tag: "v0.1.0" })
   })
 })
 
