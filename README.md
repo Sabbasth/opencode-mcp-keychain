@@ -105,6 +105,10 @@ it by adding `"-mcp-keychain"` to `plugins`.
 - A server you disabled yourself (`"disabled": true`) is left alone: its secrets are not read.
 - Secret values are never logged.
 - The first access may trigger a macOS keychain authorization prompt. Lookups time out after 60s.
+- Secrets are expected to be plain ASCII text, like API tokens. The plugin returns what
+  `security find-generic-password -w` prints, and that command prints a secret as hexadecimal when
+  it contains non-ASCII characters or a newline. This is how the tool behaves, and the plugin does
+  not work around it.
 
 ## Troubleshooting
 
