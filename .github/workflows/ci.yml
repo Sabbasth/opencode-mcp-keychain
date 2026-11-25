@@ -1,8 +1,23 @@
 name: ci
 
+# Pushes and pull requests only run when the plugin or its dependencies change. Changes to the tests, the scripts, the
+# documentation and this workflow do not. The paths filter does not apply to the manual and weekly runs, which
+# always run everything.
 on:
   push:
+    paths:
+      - "src/**"
+      - "package.json"
+      - "bun.lock"
+      - "tsconfig.json"
+      - "bunfig.toml"
   pull_request:
+    paths:
+      - "src/**"
+      - "package.json"
+      - "bun.lock"
+      - "tsconfig.json"
+      - "bunfig.toml"
   workflow_dispatch:
   schedule:
     # Weekly, to notice when a new OpenCode release breaks the plugin.
@@ -101,9 +116,24 @@ jobs:
       - name: Plan the release
         id: plan
         run: bun scripts/release.ts --notes release-notes.md
+      # The GitHub API sometimes answers with a server error, even after it created the tag. So retry, and only
+      # create what is missing: a rerun of this job completes a release that was left without its GitHub release.
       - name: Create the tag and the release
         if: steps.plan.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.plan.outputs.tag }}
-        run: gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file release-notes.md
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if gh release view "$TAG" > /dev/null 2>&1; then
+              echo "Release $TAG exists"
+              exit 0
+            fi
+            if gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file release-notes.md; then
+              exit 0
+            fi
+            echo "Attempt $attempt failed, retrying in $((attempt * 15))s"
+            sleep $((attempt * 15))
+          done
+          echo "::error::Could not create the release $TAG"
+          exit 1

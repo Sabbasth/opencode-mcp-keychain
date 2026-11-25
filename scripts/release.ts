@@ -81,6 +81,22 @@ export function plan(tags: readonly string[], commits: readonly Commit[]): Plan 
   return { release: true, tag: `v${version}`, version, previous: latest?.tag, bump, changes }
 }
 
+/**
+ * The release for HEAD. When HEAD already carries a vX.Y.Z tag, for example after a job that created the tag but
+ * not the release, plan it again without that tag: the same release comes out, so that it can be completed.
+ */
+export function resolve(
+  tags: readonly string[],
+  atHead: readonly string[],
+  commitsSince: (tag: string | undefined) => readonly Commit[],
+): Plan {
+  const others = tags.filter((tag) => !atHead.includes(tag))
+  const result = plan(others, commitsSince(latestTag(others)?.tag))
+  if (!atHead.length) return result
+  if (result.release && atHead.includes(result.tag)) return result
+  return { release: false, reason: `HEAD is already released as ${atHead.join(", ")}` }
+}
+
 const SECTIONS: ReadonlyArray<readonly [string, string]> = [
   ["feat", "Features"],
   ["fix", "Fixes"],
@@ -120,9 +136,7 @@ function readCommits(since: string | undefined): Commit[] {
 if (import.meta.main) {
   const tags = git("tag", "--list", "v*").split("\n").filter(Boolean)
   const atHead = git("tag", "--points-at", "HEAD").split("\n").filter((tag) => TAG.test(tag))
-  const result: Plan = atHead.length
-    ? { release: false, reason: `HEAD is already released as ${atHead.join(", ")}` }
-    : plan(tags, readCommits(latestTag(tags)?.tag))
+  const result = resolve(tags, atHead, readCommits)
 
   const output = process.env.GITHUB_OUTPUT
   const emit = (key: string, value: string) => output && appendFileSync(output, `${key}=${value}\n`)

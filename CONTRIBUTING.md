@@ -84,16 +84,23 @@ secret scanners flag. Use something obviously fake, such as `thisIsATestStringus
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs:
+`.github/workflows/ci.yml` only runs on a push or a pull request that changes the plugin or its
+dependencies: `src/`, `package.json`, `bun.lock`, `tsconfig.json` or `bunfig.toml`. Changes to the
+tests, the scripts, the documentation and the workflow itself do not run it. Such a change is
+therefore not checked until the next run that does. Run `bun test` locally for tests and scripts,
+`actionlint` for the workflow, or start the workflow by hand (see below).
 
-- on every push and pull request: type check, unit and plugin tests on macOS and Ubuntu, and the
+When it runs:
+
+- on a push or pull request that changes the plugin: type check, unit and plugin tests on macOS and Ubuntu, and the
   keychain tests on macOS;
 - when code reaches `main`, weekly, and on demand: the end-to-end tests on macOS against the oldest
   OpenCode release the plugin supports (`2.3.0`) and the latest one;
 - on `main` only, once all of that passed: the release job described below.
 
-The end-to-end job can be started by hand on any branch with the `workflow_dispatch` trigger, for
-example `gh workflow run ci.yml --ref my-branch`.
+The manual and weekly runs ignore the path filter and run everything. The end-to-end job can be
+started by hand on any branch with the `workflow_dispatch` trigger, for example
+`gh workflow run ci.yml --ref my-branch`.
 
 ## Commit messages
 
@@ -117,6 +124,10 @@ last `vX.Y.Z` tag:
 When a commit reaches `main` and passes every test, including the end-to-end ones, the `release` job
 creates the tag and a GitHub release with generated notes. It never commits, so the `version` in
 `package.json` is a placeholder and the git tag is the source of truth.
+
+The GitHub API sometimes fails with a server error. The job retries, and it only creates what is
+missing, so if a release is left unfinished, for example a tag without its GitHub release, rerun the
+failed job of that workflow run: it plans the release again from the tagged commit and completes it.
 
 `bun scripts/release.ts` prints the release the current checkout would produce, without changing
 anything.
