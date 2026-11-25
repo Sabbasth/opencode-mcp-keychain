@@ -91,7 +91,7 @@ describe.skipIf(!enabled)("plugin in a real OpenCode server", () => {
           launches = await f.launches()
         }
 
-        expect(launches.length).toBeGreaterThan(0)
+        if (launches.length === 0) throw new Error(`the probe was never launched\n${await running.diagnostics()}`)
         for (const line of launches) {
           expect(line).toBe(`KEY=${value} ARG=Bearer ${value}`)
           expect(line).not.toContain("{keychain:")

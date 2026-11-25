@@ -25,6 +25,8 @@ export interface Fixture {
 
 export interface Running {
   servers(): Promise<McpServer[]>
+  /** The server list and the tail of OpenCode's own output, for failure messages. */
+  diagnostics(): Promise<string>
   /** Poll the server list until `check` holds. */
   waitFor(check: (servers: McpServer[]) => boolean, what: string, timeoutMs?: number): Promise<McpServer[]>
   stop(): Promise<void>
@@ -110,6 +112,13 @@ export async function fixture(): Promise<Fixture> {
 
       const handle: Running = {
         servers: servers_,
+        async diagnostics() {
+          const list = await servers_().then(
+            (servers) => JSON.stringify(servers),
+            (error) => `GET /api/mcp failed: ${error}`,
+          )
+          return `servers: ${list}\n--- opencode output ---\n${output.join("").slice(-3000)}`
+        },
         async waitFor(check, what, timeoutMs = 30_000) {
           const start = Date.now()
           let last: McpServer[] = []
