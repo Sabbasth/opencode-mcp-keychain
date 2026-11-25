@@ -1,6 +1,6 @@
 {
   "name": "opencode-mcp-keychain",
-  "version": "0.1.0",
+  "version": "0.0.0-development",
   "description": "Resolve {keychain:<name>} references in OpenCode MCP server configuration from the OS keychain",
   "type": "module",
   "license": "MIT",
