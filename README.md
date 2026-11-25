@@ -6,10 +6,10 @@ configuration from the OS keychain, alongside the built-in `{env:<name>}` and `{
 ## Install
 
 Install a pinned release from GitHub with the OpenCode CLI. Git credentials are used for private
-repositories.
+repositories. The tags are listed on the [releases page](https://github.com/Sabbasth/opencode-mcp-keychain/releases).
 
 ```sh
-opencode plugin add github:Sabbasth/opencode-mcp-keychain#v0.1.0
+opencode plugin add github:Sabbasth/opencode-mcp-keychain#<tag>
 ```
 
 The suffix after `#` can be a tag, a branch or a full commit hash. A tag or a full commit hash pins
@@ -20,19 +20,13 @@ OpenCode checks for updates at startup.
 opencode plugin list                          # installed plugins and their source
 opencode plugin check                         # look for updates (pinned revisions are skipped)
 opencode plugin update mcp-keychain           # update an unpinned install
-opencode plugin remove github:Sabbasth/opencode-mcp-keychain#v0.1.0
+opencode plugin remove github:Sabbasth/opencode-mcp-keychain#<tag>
 ```
 
 To move to another release, remove the pinned entry and add the new tag. SSH works as well:
-`opencode plugin add git+ssh://git@github.com/Sabbasth/opencode-mcp-keychain.git#v0.1.0`.
+`opencode plugin add git+ssh://git@github.com/Sabbasth/opencode-mcp-keychain.git#<tag>`.
 
-For development, point `plugins` at a local clone instead. OpenCode watches the directory and
-reloads on change. Do not keep this entry next to a GitHub install, since both register the same
-plugin ID.
-
-```jsonc title="opencode.jsonc"
-{ "plugins": ["/absolute/path/to/opencode-mcp-keychain"] }
-```
+Releases follow [semver](https://semver.org), and each one has generated notes on the releases page.
 
 ## Usage
 
@@ -91,31 +85,37 @@ it by adding `"-mcp-keychain"` to `plugins`.
 
 ## Behavior
 
-- OpenCode core substitutes `{env:}` and `{file:}` in the raw config text and has no extension
-  point for new keywords. It leaves `{keychain:}` untouched, so this plugin rewrites MCP server
-  configs through `ctx.mcp.transform`.
-- Transforms are synchronous, so secrets are read asynchronously. A server whose references are
-  not resolved yet is kept `disabled`, which means it never connects with a literal placeholder.
-  Once every pending lookup settles, the plugin calls `ctx.mcp.reload()` and the server connects
-  with the resolved values.
+- A server is kept disabled while its secrets are being read, so it never connects with a literal
+  placeholder. It then connects with the resolved values.
+- A missing, empty or unreadable secret never becomes an empty string like with `{env:}`. The
+  server is reported as `failed` with an explanation instead, see [Troubleshooting](#troubleshooting).
 - Values are cached in memory for the lifetime of the plugin. After rotating a secret, or adding
   a missing one, run `/reload`.
-- A missing or unreadable secret keeps the server disabled (visible in `/mcps`) instead of
-  substituting an empty string like `{env:}` does.
+- A server you disabled yourself (`"disabled": true`) is left alone: its secrets are not read.
 - Secret values are never logged.
 - The first access may trigger a macOS keychain authorization prompt. Lookups time out after 60s.
+- Secrets are expected to be plain ASCII text, like API tokens. The plugin returns what
+  `security find-generic-password -w` prints, and that command prints a secret as hexadecimal when
+  it contains non-ASCII characters or a newline. This is how the tool behaves, and the plugin does
+  not work around it.
+- Only MCP server configuration is handled.
 
-## Scope
+## Troubleshooting
 
-Only MCP server configuration is handled. Providers could be supported the same way through
-`ctx.provider.transform`.
+When a secret cannot be read, the affected server shows up as `failed` in `/mcps`, in the desktop
+app and in `opencode mcp list`, with the reason and the command that stores the secret:
 
-## Development
-
-The plugin only uses type imports from `@opencode/plugin`, so it has no runtime dependency and
-loads from a local directory as is. For type checking:
-
-```sh
-npm install
-npm run typecheck
 ```
+✗ github-ro  failed: Connection closed: MCP server process exited with code 1:
+  mcp-keychain: cannot read {keychain:github-mcp-readonly} (security: SecKeychainSearchCopyNext:
+  The specified item could not be found in the keychain.). Store it with:
+  security add-generic-password -s github-mcp-readonly -w, then run /reload
+```
+
+Store the secret with the suggested command, then run `/reload`. Failures are remembered until
+then, so that a missing secret is not looked up again on every reload. If several secrets of one
+server are unreadable, all of them are listed.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the setup, the tests, the CI and how releases are made.
